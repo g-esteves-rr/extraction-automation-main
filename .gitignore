@@ -24,3 +24,19 @@ screenshots/**
 
 # lock files
 *.lock
+
+#images
+*.bmp
+*.png
+*.jpg
+*.jpeg
+
+#backups
+00_extras/**
+# exclude extras
+00_extras/
+
+
+# local runtime files
+heartbeat/*.json
+
