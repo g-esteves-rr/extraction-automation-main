@@ -1,0 +1,59 @@
+{
+  "1-login": {
+    "images": [
+      "images/generic/1_en_username.png"
+    ],
+    "action": "perform_login"
+  },
+  "2-select_responsabilite": {
+    "images": [
+      "images/generic/2_arrow_down.png",
+      "images/generic/2_en_continue.png"
+    ],
+    "action": "perform_select_responsabilite"
+  },
+  "3-accept_optional": {
+    "images": [
+      "images/generic/3_en_accept.png",
+      "images/generic/3_en_run.png"
+    ],
+    "action": "perform_accept_optional"
+  },
+  "4-browse": {
+    "images": [
+      "images/generic/4_en_browse.bmp",
+      "images/generic/4_en_all_workbooks.bmp",
+      "images/ic01/4_en_ic01_workbook.bmp"
+    ],
+    "action": "perform_browse"
+  },
+  "5-select_periode": {
+    "date_format": "%b-%y",
+    "images": ["images/ic01/8_en_periode.bmp"],
+    "action": "perform_select_periode"
+  },
+  "6-wait": {
+    "images": ["images/generic/5_en_running_query.bmp"],
+    "action": "perform_wait"
+  },
+  "7-extract": {
+    "date_format": "%Y-%m",
+    "images": [
+      "images/generic/6_en_file.bmp",
+      "images/generic/6_en_export.bmp",
+      "images/generic/6_en_next.bmp",
+      "images/generic/6_en_browse.bmp",
+      "images/generic/6_en_save.bmp",
+      "images/generic/6_en_yes.bmp",
+      "images/generic/6_en_finish.bmp"
+    ],
+    "action": "perform_extract_ic01"
+  },
+  "7-download": {
+    "images": [
+      "images/generic/7_check.bmp",
+      "images/generic/7_ok.bmp"
+    ],
+    "action": "perform_download"
+  }
+}

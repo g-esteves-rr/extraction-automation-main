@@ -1,0 +1,26 @@
+# secrets / local config
+.env
+.env.*
+
+# python
+__pycache__/
+*.pyc
+
+# venv
+env_automation/
+venv/
+.venv/
+
+# logs
+*.log
+activity_logs.log
+
+# screenshots (ignore everything inside)
+screenshots/**
+
+# optional OS/editor
+.DS_Store
+.vscode/
+
+# lock files
+*.lock

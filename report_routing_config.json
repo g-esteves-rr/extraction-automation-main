@@ -1,0 +1,100 @@
+{
+  "reports": [
+    {
+      "report_name": "DUK008",
+      "server_source": "Debian Discoverer",
+      "servers_targets": [
+        {
+          "server": "globalardwh.equant.com",
+          "port": 2121,
+          "destination_path": "DUK008"
+        },
+        {
+          "server": "10.238.100.112",
+          "port": 2121,
+          "destination_path": "/00_files/DUK008"
+        },
+        {
+           "server": "10.238.102.67",
+           "port": 2121,
+           "destination_path": "/00_files/DUK008"
+         },
+        {
+           "server": "10.238.100.104",
+           "port": 2121,
+           "destination_path": "/00_files/DUK008"
+         }
+      ]
+    },
+    {
+      "report_name": "DUK008_XLS",
+      "server_source": "Debian Discoverer",
+      "servers_targets": [
+        {
+          "server": "globalardwh.equant.com",
+          "port": 2121,
+          "destination_path": "DUK008_XLS"
+        }
+      ]
+    },
+    {
+      "report_name": "IC01",
+      "server_source": "Debian Discoverer",
+      "servers_targets": [
+        {
+          "server": "globalardwh.equant.com",
+          "port": 2121,
+          "destination_path": "IC01"
+        },
+        {
+           "server": "10.238.100.104",
+           "port": 2121,
+           "destination_path": "/00_files/IC01"
+         }
+      ]
+    },
+    {
+      "report_name": "PROVISION",
+      "server_source": "Debian Discoverer",
+      "servers_targets": [
+        {
+          "server": "globalardwh.equant.com",
+          "port": 2121,
+          "destination_path": "PROVISION"
+        },
+        {
+           "server": "10.238.100.104",
+           "port": 2121,
+           "destination_path": "/00_files/PROVISION"
+         }
+      ]
+    },
+    {
+      "report_name": "ACCRUALS",
+      "server_source": "Debian Discoverer",
+      "servers_targets": [
+        {
+          "server": "globalardwh.equant.com",
+          "port": 2121,
+          "destination_path": "ACCRUALS"
+        },
+        {
+           "server": "10.238.100.104",
+           "port": 2121,
+           "destination_path": "/00_files/ACCRUALS"
+         }
+      ]
+    },
+    {
+      "report_name": "OBSSA_AGING_BALANCE",
+      "server_source": "Debian General",
+      "servers_targets": [
+        {
+          "server": "globalardwh.equant.com",
+          "port": 2121,
+          "destination_path": "OBSSA_AGING_BALANCE"
+        }
+      ]
+    }
+  ]
+}

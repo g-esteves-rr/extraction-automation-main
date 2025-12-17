@@ -1,0 +1,74 @@
+{
+  "1-login": {
+    "images": [
+      "images/generic/1_en_1_connect_to.bmp",
+      "images/generic/1_en_2_applications.bmp",
+      "images/generic/1_en_3_username.bmp"
+    ],
+    "action": "perform_login"
+  },
+  "2-select_responsabilite": {
+    "images": [
+      "images/generic/2_arrow_down.bmp",
+      "images/generic/2_en_continue.bmp"
+    ],
+    "action": "perform_select_responsabilite"
+  },
+  "3-accept_optional": {
+    "images": [
+      "images/generic/3_en_accept.png",
+      "images/generic/3_en_run.png"
+    ],
+    "action": "perform_accept_optional"
+  },
+  "3-wait": {
+    "images": [
+      "images/generic/4_en_browse.bmp"
+    ],
+    "action": "perform_long_wait"
+  },
+  "4-browse": {
+    "images": [
+      "images/generic/4_en_browse.bmp",
+      "images/generic/4_en_all_workbooks.bmp",
+      "images/accruals/4_en_accruals_workbook.bmp"
+    ],
+    "action": "perform_browse"
+  },
+  "5-long-wait": {
+    "images": [
+    	"images/generic/5_i.bmp",
+    	"images/generic/5_en_yes.bmp"
+    ],
+    "action": "perform_wait_large_query"
+  },
+  "6-periode": {
+    "date_format": "%b-%y",
+    "images": [
+      "images/accruals/6_conditions.bmp",
+      "images/accruals/6_period_name_in.bmp",
+      "images/accruals/6_run_query_yes_popup.bmp"
+    ],
+    "action": "perform_conditions"
+  },
+  "8-extract": {
+    "date_format": "%Y-%m",
+    "images": [
+      "images/generic/6_en_file.bmp",
+      "images/generic/6_en_export.bmp",
+      "images/generic/6_en_next.bmp",
+      "images/generic/6_en_browse.bmp",
+      "images/generic/6_en_save.bmp",
+      "images/generic/6_en_yes.bmp",
+      "images/generic/6_en_finish.bmp"
+    ],
+    "action": "perform_extract"
+  },
+  "9-download": {
+    "images": [
+      "images/generic/7_check.bmp",
+      "images/generic/7_ok.bmp"
+    ],
+    "action": "perform_download"
+  }
+}
