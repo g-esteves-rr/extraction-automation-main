@@ -40,3 +40,4 @@ screenshots/**
 # local runtime files
 heartbeat/*.json
 
+heartbeat/heartbeat_discoverer.json
