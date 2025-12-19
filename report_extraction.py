@@ -221,8 +221,10 @@ class AutomationManager:
 
         last_exc = None
         for account in credentials:
-            user_folder = account.get("config_folder") or account.get("name") or (account.get("username").upper() if account.get("username") else None)
-            log_message(f"Attempting login using account (config folder): {user_folder}", INFO)
+            # Use username (uppercased) as the config folder unless an explicit
+            # `config_folder` is provided. Do NOT use `name` for the config path.
+            user_folder = account.get("config_folder") or (account.get("username").upper() if account.get("username") else None)
+            log_message(f"Attempting login using account username for config folder: {user_folder}", INFO)
             attempt_ts = datetime.utcnow().isoformat() + "Z"
             try:
                 # load per-user report config if available
