@@ -205,16 +205,12 @@ class AutomationManager:
             detected_mem = [a.get("name") or a.get("username") for a in credentials] if credentials else []
             log_message(f"Using credentials from env/loader: {detected_mem}", INFO)
 
-        # Fallback to single credentials from environment
-        if not credentials:
-            env_user = os.environ.get("USERNAME")
-            env_pass = os.environ.get("PASSWORD")
-            env_db = os.environ.get("DATABASE")
-            if env_user and env_pass:
-                credentials = [{"name": "env", "username": env_user, "password": env_pass, "database": env_db}]
+        # If loader didn't return creds, use the raw credentials file accounts (preferred)
+        if not credentials and file_accounts:
+            credentials = file_accounts
 
         if not credentials:
-            raise ValueError("No credentials available (set CREDENTIALS_FILE or .env variables)")
+            raise ValueError("No credentials available (set CREDENTIALS_FILE or provide config/credentials.json)")
 
         last_exc = None
         for account in credentials:
@@ -418,9 +414,13 @@ class AutomationManager:
     
     def perform_login(self, step_name, images):
         log_message("Performing login", INFO)
-        username = os.environ.get("USERNAME")
-        password = os.environ.get("PASSWORD")
-        database = os.environ.get("DATABASE")
+        # Use the currently selected account for credentials. Do not read
+        # username/password/database from environment variables.
+        if not getattr(self, "current_account", None):
+            raise ValueError("No current account set for login; credentials must come from credentials.json")
+        username = self.current_account.get("username")
+        password = self.current_account.get("password")
+        database = self.current_account.get("database")
 
         try:
             #Connect to
