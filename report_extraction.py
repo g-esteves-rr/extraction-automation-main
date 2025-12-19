@@ -236,11 +236,13 @@ class AutomationManager:
                 last_exc = e
                 continue
 
-            # obtain login step images from report_conf
+            # obtain login step images and step name from report_conf
             login_images = None
+            login_step_name = None
             for step_name, step_details in report_conf.items():
                 if step_details.get("action") == "perform_login":
                     login_images = step_details.get("images")
+                    login_step_name = step_name
                     break
 
             if not login_images:
@@ -248,26 +250,47 @@ class AutomationManager:
                 last_exc = Exception("Login step not found")
                 continue
 
-            result = self.perform_login_attempt(account, login_images, report_conf)
-            # Map attempt result to status string for credentials file
-            if result == "success":
-                new_status = "valid"
-            elif result == "password_expired":
-                new_status = "expired"
-            else:
-                new_status = "failed"
+            # Execute the login step using the function that performs UI interactions
+            self.current_account = account
+            try:
+                self.perform_login(login_step_name, login_images)
+                login_result = "performed"
+            except Exception as e:
+                log_message(f"Login UI interaction failed for {user_folder}: {e}", WARNING)
+                login_result = "failed"
+
+            # Default status
+            new_status = "failed"
+
+            # If login UI succeeded, run the password-check step (if present)
+            if login_result == "performed":
+                # find password-check step if present
+                pwd_check_images = None
+                pwd_check_name = None
+                for sname, sdet in report_conf.items():
+                    if sdet.get("action") == "perform_check_password_expired":
+                        pwd_check_images = sdet.get("images")
+                        pwd_check_name = sname
+                        break
+
+                try:
+                    if pwd_check_images:
+                        # perform_check_password_expired will raise if expired
+                        self.perform_check_password_expired(pwd_check_name, pwd_check_images)
+                    # if we reach here, not expired
+                    new_status = "valid"
+                    print(f"LOGIN_CONFIRMED:{account.get('username')}")
+                except Exception:
+                    # expired (perform_check_password_expired already updated creds)
+                    new_status = "expired"
 
             # Update the credentials file entry (if present)
             try:
                 if file_accounts:
-                    # case-insensitive matching by name or username
+                    # case-insensitive matching by username
                     match = None
                     acct_user = (account.get("username") or "").lower()
-                    acct_name = (account.get("name") or "").lower()
                     for a in file_accounts:
-                        if (a.get("name") or "").lower() == acct_name and acct_name:
-                            match = a
-                            break
                         if (a.get("username") or "").lower() == acct_user and acct_user:
                             match = a
                             break
@@ -285,28 +308,26 @@ class AutomationManager:
                         log_message(f"Updated credentials file {creds_path} for {(match.get('name') or match.get('username'))}: status={new_status} wrote={wrote}", INFO)
             except Exception as e:
                 log_message(f"Error updating credentials file: {e}", WARNING)
-            if result == "success":
-                # set active config and load steps
-                # remove any perform_login steps from the report config so we
-                # don't execute login twice (we already performed login above)
+
+            if new_status == "valid":
+                # set active config and load steps, but remove the login and pwd-check steps
                 cleaned_conf = {}
                 removed = []
                 for k, v in (report_conf.items() if isinstance(report_conf, dict) else []):
-                    if isinstance(v, dict) and v.get("action") == "perform_login":
+                    if isinstance(v, dict) and v.get("action") in ("perform_login", "perform_check_password_expired"):
                         removed.append(k)
                         continue
                     cleaned_conf[k] = v
                 if removed:
-                    log_message(f"Removed login steps from report config: {removed}", INFO)
+                    log_message(f"Removed initial login/password-check steps from report config: {removed}", INFO)
                 self.report_config = cleaned_conf if cleaned_conf else report_conf
                 self.load_steps()
                 self.current_account = account
                 log_message(f"Login successful. Using account: {user_folder}", INFO)
                 return True
-            elif result == "password_expired":
-                # log and continue to next account
+            elif new_status == "expired":
+                # try next account
                 log_message(f"Password expired for {user_folder}", WARNING)
-                # also emit a simple signal line for external handling
                 print(f"PASSWORD_EXPIRED:{user_folder}")
                 last_exc = Exception("Password expired")
                 continue
