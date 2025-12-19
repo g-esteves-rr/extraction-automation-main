@@ -76,6 +76,25 @@ exit_status=$?
 # Calculate execution time
 execution_time=$SECONDS
 
+# If Python printed any PASSWORD_EXPIRED signals during its run, notify and mark credentials
+if echo "$python_output" | grep -q '^PASSWORD_EXPIRED:'; then
+  # iterate unique usernames
+  echo "Detected PASSWORD_EXPIRED entries in python output"
+  echo "$python_output" | grep '^PASSWORD_EXPIRED:' | cut -d: -f2- | sed 's/^\s*//;s/\s*$//' | sort -u | while read -r expired_user; do
+    echo "expired credentials: $expired_user"
+    # Mark credential as expired in config
+    if [[ -x "scripts/mark_credential_expired.sh" ]]; then
+      scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
+    else
+      bash scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
+    fi
+    # Send a password-expired notification so operators can handle it
+    if [[ -x "notifications/notify.sh" || -f "notifications/notify.sh" ]]; then
+      ./notifications/notify.sh "PASSWORD_EXPIRED" "EXPIRED" "Password expired for user $expired_user" || true
+    fi
+  done
+fi
+
 if [ $exit_status -ne 0 ]; then
   echo "Python script failed with message: $python_output"
 
@@ -91,6 +110,11 @@ if [ $exit_status -ne 0 ]; then
     else
       # Try to call even if not executable
       bash scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
+    fi
+    # Send a password-expired notification so operators can handle it
+    if [[ -x "notifications/notify.sh" || -f "notifications/notify.sh" ]]; then
+      # report_name "PASSWORD_EXPIRED" is treated as a special alert by notify.sh
+      ./notifications/notify.sh "PASSWORD_EXPIRED" "EXPIRED" "Password expired for user $expired_user" || true
     fi
   fi
 

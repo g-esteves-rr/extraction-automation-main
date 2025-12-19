@@ -52,8 +52,8 @@ if [[ -z "$FTP_SERVER" || -z "$FTP_PORT" || -z "$FTP_USER" || -z "$FTP_PASS" || 
   exit 1
 fi
 
-# Convert VALID_REPORTS to an array
-IFS=',' read -r -a valid_reports <<< "$VALID_REPORTS"
+# Convert VALID_REPORTS to an array (may be empty for special alerts)
+IFS=',' read -r -a valid_reports <<< "${VALID_REPORTS:-}"
 
 # Get report name, status, and optional error message from the script arguments
 report_name=$(tr '[:lower:]' '[:upper:]' <<< "$1" | xargs)  # Convert to uppercase and trim spaces
@@ -66,19 +66,24 @@ if [[ -z "$report_name" || -z "$status" ]]; then
   exit 1
 fi
 
-# Check if provided report name is valid (case-insensitive)
-found=false
-for valid_report in "${valid_reports[@]}"; do
-  # Trim whitespace from valid_report and compare with report_name
-  if [[ "$(echo $valid_report | xargs)" == "$report_name" ]]; then
-    found=true
-    break
-  fi
-done
+# If this is a special password expiration alert, bypass the VALID_REPORTS check
+if [[ "$report_name" == "PASSWORD_EXPIRED" || "$status" == "PASSWORD_EXPIRED" ]]; then
+  found=true
+else
+  # Check if provided report name is valid (case-insensitive)
+  found=false
+  for valid_report in "${valid_reports[@]}"; do
+    # Trim whitespace from valid_report and compare with report_name
+    if [[ "$(echo $valid_report | xargs)" == "$report_name" ]]; then
+      found=true
+      break
+    fi
+  done
 
-if [[ "$found" == false ]]; then
-  echo "Error: Invalid report name '$report_name'. Valid options are: ${valid_reports[*]}"
-  exit 1
+  if [[ "$found" == false ]]; then
+    echo "Error: Invalid report name '$report_name'. Valid options are: ${valid_reports[*]}"
+    exit 1
+  fi
 fi
 
 # Local temporary file
