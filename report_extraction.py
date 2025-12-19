@@ -97,6 +97,54 @@ def load_report_config(report_name, user_folder=None):
     raise FileNotFoundError(f"Report config not found for {report_name} (user_folder={user_folder})")
 
 
+def _read_credentials_file(path):
+    """Read credentials file if present.
+
+    Returns (data_obj, accounts_list, accounts_key)
+    - data_obj: the parsed JSON (dict or list)
+    - accounts_list: list of account dicts
+    - accounts_key: None if top-level is list, or the key name (likely 'accounts')
+    """
+    if not os.path.isfile(path):
+        return None, None, None
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and "accounts" in data and isinstance(data["accounts"], list):
+            return data, data["accounts"], "accounts"
+        if isinstance(data, list):
+            return data, data, None
+        # unknown structure
+        return data, None, None
+    except Exception:
+        return None, None, None
+
+
+def _write_credentials_file(path, data_obj, accounts_list=None, accounts_key=None):
+    """Write credentials back to disk atomically.
+
+    If original structure used an accounts_key, update that key, otherwise
+    write the provided accounts_list or data_obj.
+    """
+    try:
+        if accounts_key and isinstance(data_obj, dict):
+            data_obj[accounts_key] = accounts_list
+            to_write = data_obj
+        elif accounts_list is not None and accounts_key is None:
+            to_write = accounts_list
+        else:
+            to_write = data_obj
+
+        tmp = f"{path}.tmp"
+        with open(tmp, "w") as f:
+            json.dump(to_write, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, path)
+        return True
+    except Exception as e:
+        log_message(f"Failed to write credentials file {path}: {e}", WARNING)
+        return False
+
+
 class AutomationManager:
     def __init__(self, report_name, date=None):
         self.browser_instance = None
@@ -147,6 +195,16 @@ class AutomationManager:
         except Exception as e:
             log_message(f"Could not load credentials from {creds_path}: {e}", WARNING)
 
+        # Try to read credentials file directly to allow updating status/metadata
+        file_data, file_accounts, file_accounts_key = _read_credentials_file(creds_path)
+        if file_accounts:
+            detected = [a.get("name") or a.get("username") for a in file_accounts]
+            log_message(f"Detected accounts in credentials file {creds_path}: {detected}", INFO)
+        else:
+            # If no file-based accounts, log what we have in memory
+            detected_mem = [a.get("name") or a.get("username") for a in credentials] if credentials else []
+            log_message(f"Using credentials from env/loader: {detected_mem}", INFO)
+
         # Fallback to single credentials from environment
         if not credentials:
             env_user = os.environ.get("USERNAME")
@@ -162,6 +220,7 @@ class AutomationManager:
         for account in credentials:
             user_folder = account.get("config_folder") or account.get("name") or account.get("username")
             log_message(f"Attempting login using account: {user_folder}", INFO)
+            attempt_ts = datetime.utcnow().isoformat() + "Z"
             try:
                 # load per-user report config if available
                 report_conf = load_report_config(self.report_name, user_folder=user_folder)
@@ -184,11 +243,52 @@ class AutomationManager:
                 continue
 
             result = self.perform_login_attempt(account, login_images, report_conf)
+            # Map attempt result to status string for credentials file
+            if result == "success":
+                new_status = "valid"
+            elif result == "password_expired":
+                new_status = "expired"
+            else:
+                new_status = "failed"
+
+            # Update the credentials file entry (if present)
+            try:
+                if file_accounts:
+                    # find matching account by name or username
+                    match = None
+                    for a in file_accounts:
+                        if (a.get("name") and account.get("name") and a.get("name") == account.get("name")) or (
+                            a.get("username") and account.get("username") and a.get("username") == account.get("username")
+                        ):
+                            match = a
+                            break
+                    if match is None:
+                        # no exact match; try username-only match
+                        for a in file_accounts:
+                            if a.get("username") == account.get("username"):
+                                match = a
+                                break
+                    if match is not None:
+                        prev_status = match.get("status")
+                        match["status"] = new_status
+                        match["last_used"] = attempt_ts
+                        if new_status == "expired":
+                            match["expiry_date"] = attempt_ts
+                        else:
+                            # clear expiry_date when back to valid or failed
+                            match.pop("expiry_date", None)
+                        if prev_status != new_status:
+                            match["status_changed_at"] = attempt_ts
+                        wrote = _write_credentials_file(creds_path, file_data, file_accounts, file_accounts_key)
+                        log_message(f"Updated credentials file {creds_path} for {match.get('name') or match.get('username')}: status={new_status} wrote={wrote}", INFO)
+            except Exception as e:
+                log_message(f"Error updating credentials file: {e}", WARNING)
             if result == "success":
                 # set active config and load steps
                 self.report_config = report_conf
                 self.load_steps()
                 self.current_account = account
+                log_message(f"Login successful. Using account: {user_folder}", INFO)
                 return True
             elif result == "password_expired":
                 # log and continue to next account
