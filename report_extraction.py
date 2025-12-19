@@ -82,10 +82,13 @@ def load_report_config(report_name, user_folder=None):
     `config/{user_folder}/{report_name}.json` first, then fall back to
     `config/{report_name}.json`.
     """
+    # Prefer configs placed relative to this script so execution from other
+    # working directories still finds the files.
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     paths_to_try = []
     if user_folder:
-        paths_to_try.append(os.path.join("config", user_folder, f"{report_name}.json"))
-    paths_to_try.append(os.path.join("config", f"{report_name}.json"))
+        paths_to_try.append(os.path.join(script_dir, "config", user_folder, f"{report_name}.json"))
+    paths_to_try.append(os.path.join(script_dir, "config", f"{report_name}.json"))
 
     for config_path in paths_to_try:
         if os.path.isfile(config_path):
@@ -130,7 +133,13 @@ class AutomationManager:
 
     def select_and_login_and_load_steps(self):
         """Try credentials sequentially, load the per-user report config and steps on success."""
-        creds_path = os.environ.get("CREDENTIALS_FILE", "config/credentials.json")
+        # Resolve credentials file: prefer env var, otherwise use config/credentials.json
+        # located relative to this script so running from other CWDs still works.
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        creds_path = os.environ.get(
+            "CREDENTIALS_FILE",
+            os.path.join(script_dir, "config", "credentials.json"),
+        )
         credentials = []
         try:
             if load_credentials:
