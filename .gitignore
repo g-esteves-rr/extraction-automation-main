@@ -37,13 +37,17 @@ screenshots/**
 00_extras/
 
 
-# Runtime / queue files (always changing)
-reports_queue/reports_queue.json
+# Runtime / queue files (always changing)
+
+reports_queue/reports_queue.json
 stats/report_stats.txt
 heartbeat/heartbeat_discoverer.json
-
-# future-proof
-reports_queue/*.json
+
+
+# future-proof
+
+reports_queue/*.json
+
 stats/*.txt
 heartbeat/*.json
 
