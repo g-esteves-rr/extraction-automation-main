@@ -287,7 +287,18 @@ class AutomationManager:
                 log_message(f"Error updating credentials file: {e}", WARNING)
             if result == "success":
                 # set active config and load steps
-                self.report_config = report_conf
+                # remove any perform_login steps from the report config so we
+                # don't execute login twice (we already performed login above)
+                cleaned_conf = {}
+                removed = []
+                for k, v in (report_conf.items() if isinstance(report_conf, dict) else []):
+                    if isinstance(v, dict) and v.get("action") == "perform_login":
+                        removed.append(k)
+                        continue
+                    cleaned_conf[k] = v
+                if removed:
+                    log_message(f"Removed login steps from report config: {removed}", INFO)
+                self.report_config = cleaned_conf if cleaned_conf else report_conf
                 self.load_steps()
                 self.current_account = account
                 log_message(f"Login successful. Using account: {user_folder}", INFO)
@@ -476,52 +487,69 @@ class AutomationManager:
         database = account.get("database")
 
         try:
-            # Connect / open login dialog
-            x, y = StepExecutor.wait_for_image(images[0], report_name=self.report_name)
-            StepExecutor.take_screenshot("login_start", report_name=self.report_name)
-            pyautogui.click(x + 75, y)
-            pyautogui.press('down')
-            pyautogui.press('enter')
-            time.sleep(MIN_SLEEP_TIME)
+            # Delegate the actual UI interactions to the single `perform_login`
+            # function so all login logic remains in one place.
+            self.current_account = account
+            try:
+                self.perform_login("login_attempt", images)
+            except Exception as e:
+                log_message(f"Exception during perform_login for {username}: {e}", WARNING)
+                return "failure"
 
-            # Enter username
-            x, y = StepExecutor.wait_for_image(images[2], report_name=self.report_name)
-            StepExecutor.take_screenshot("login_user", report_name=self.report_name)
-            pyautogui.click(x + 100, y)
-            time.sleep(MIN_SLEEP_TIME)
-            pyautogui.press(list(username))
-            time.sleep(MIN_SLEEP_TIME)
-
-            pyautogui.press('tab')
-            pyautogui.press(list(password))
-            StepExecutor.take_screenshot("login_pass", report_name=self.report_name)
-
-            pyautogui.press('tab')
-            pyautogui.press(list(database) if database else [])
-            StepExecutor.take_screenshot("login_db", report_name=self.report_name)
-            pyautogui.press('enter')
-
-            # After submitting, try to detect explicit failure or success images
+            # After performing login, confirm result using report meta or
+            # the next-step image. Do NOT check the global expired image here;
+            # the dedicated `1b-password_check` step will handle expiry.
             meta = report_conf.get("_meta", {}) if isinstance(report_conf, dict) else {}
             success_img = meta.get("login_success_image")
             expired_img = meta.get("password_expired_image")
 
-            # Give UI a moment to show result
-            time.sleep(3)
+            # short pause for UI
+            time.sleep(1)
 
+            # If the report defines an expired image specifically, check it
             if expired_img and StepExecutor.check_image_exists(expired_img, report_name=self.report_name):
                 return "password_expired"
 
+            # Try to find the image that starts the next step in the report
+            next_step_img = None
+            if isinstance(report_conf, dict):
+                try:
+                    items = list(report_conf.items())
+                    login_index = None
+                    for idx, (sname, sdet) in enumerate(items):
+                        if sdet.get("action") == "perform_login":
+                            login_index = idx
+                            break
+                    if login_index is not None and login_index + 1 < len(items):
+                        next_details = items[login_index + 1][1]
+                        nimgs = next_details.get("images") or []
+                        if len(nimgs) > 0:
+                            next_step_img = nimgs[0]
+                except Exception:
+                    next_step_img = None
+
+            TIMEOUT_CONFIRM = 10
+            POLL_INTERVAL = 1
+            if next_step_img:
+                elapsed = 0
+                while elapsed < TIMEOUT_CONFIRM:
+                    if StepExecutor.check_image_exists(next_step_img, report_name=self.report_name):
+                        print(f"LOGIN_CONFIRMED:{username}")
+                        return "success"
+                    time.sleep(POLL_INTERVAL)
+                    elapsed += POLL_INTERVAL
+
             if success_img and StepExecutor.check_image_exists(success_img, report_name=self.report_name):
+                print(f"LOGIN_CONFIRMED:{username}")
                 return "success"
 
-            # If no specific images provided, assume success if no explicit expired image.
-            if not expired_img and not success_img:
-                # best-effort: small wait then consider success
+            # If no explicit images provided, assume success
+            if not expired_img and not success_img and not next_step_img:
                 time.sleep(2)
+                print(f"LOGIN_CONFIRMED:{username}")
                 return "success"
 
-            # If we had a success image configured but didn't find it, treat as failure
+            print(f"LOGIN_FAILED:{username}")
             return "failure"
 
         except Exception as e:
