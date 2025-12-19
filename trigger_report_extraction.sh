@@ -78,12 +78,25 @@ execution_time=$SECONDS
 
 if [ $exit_status -ne 0 ]; then
   echo "Python script failed with message: $python_output"
-  
-  # Send failure notification with the error message
+
+  # Detect explicit password-expired signal from Python
+  expired_user=""
+  if echo "$python_output" | grep -q '^PASSWORD_EXPIRED:'; then
+    expired_user=$(echo "$python_output" | grep '^PASSWORD_EXPIRED:' | head -n1 | cut -d: -f2-)
+    echo "expired credentials: $expired_user"
+    # Mark credential as expired in config
+    if [[ -x "scripts/mark_credential_expired.sh" ]]; then
+      # Script usage: scripts/mark_credential_expired.sh <credentials_file> <account_name>
+      scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
+    else
+      # Try to call even if not executable
+      bash scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
+    fi
+  fi
+
+  # Send failure notification with the error message (optional)
   #./notifications/notify.sh "$report_name" "$STATUS_FAIL" "$python_output"
-  #"ERROR on Extraction"
-  #"$python_output"
-  
+
   # Update stats with the failure status and execution time
   ./stats/append_stats.sh "$report_name" "$execution_time" "$STATUS_FAIL"
   exit 1

@@ -1,6 +1,7 @@
 # secrets / local config
 .env
 .env.*
+config/credentials.json
 
 # python
 __pycache__/
