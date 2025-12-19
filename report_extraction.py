@@ -96,7 +96,11 @@ def load_report_config(report_name, user_folder=None):
         log_message(f"Looking for report config at: {config_path}", INFO)
         if os.path.isfile(config_path):
             with open(config_path, "r") as f:
-                return json.load(f)
+                cfg = json.load(f)
+            # Log and print the exact config path being used
+            log_message(f"Using report config file: {config_path}", INFO)
+            print(f"REPORT_CONFIG:{config_path}")
+            return cfg
     raise FileNotFoundError(f"Report config not found for {report_name} (user_folder={user_folder})")
 
 
@@ -201,7 +205,7 @@ class AutomationManager:
         # Try to read credentials file directly to allow updating status/metadata
         file_data, file_accounts, file_accounts_key = _read_credentials_file(creds_path)
         if file_accounts:
-            detected = [a.get("name") or a.get("username") for a in file_accounts]
+            detected = [(a.get("name") or a.get("username") or "<unknown>").upper() for a in file_accounts]
             log_message(f"Detected accounts in credentials file {creds_path}: {detected}", INFO)
         else:
             # If no file-based accounts, log what we have in memory
@@ -217,8 +221,8 @@ class AutomationManager:
 
         last_exc = None
         for account in credentials:
-            user_folder = account.get("username")
-            log_message(f"Attempting login using account: {user_folder}", INFO)
+            user_folder = account.get("config_folder") or account.get("name") or (account.get("username").upper() if account.get("username") else None)
+            log_message(f"Attempting login using account (config folder): {user_folder}", INFO)
             attempt_ts = datetime.utcnow().isoformat() + "Z"
             try:
                 # load per-user report config if available
@@ -253,20 +257,17 @@ class AutomationManager:
             # Update the credentials file entry (if present)
             try:
                 if file_accounts:
-                    # find matching account by name or username
+                    # case-insensitive matching by name or username
                     match = None
+                    acct_user = (account.get("username") or "").lower()
+                    acct_name = (account.get("name") or "").lower()
                     for a in file_accounts:
-                        if (a.get("name") and account.get("name") and a.get("name") == account.get("name")) or (
-                            a.get("username") and account.get("username") and a.get("username") == account.get("username")
-                        ):
+                        if (a.get("name") or "").lower() == acct_name and acct_name:
                             match = a
                             break
-                    if match is None:
-                        # no exact match; try username-only match
-                        for a in file_accounts:
-                            if a.get("username") == account.get("username"):
-                                match = a
-                                break
+                        if (a.get("username") or "").lower() == acct_user and acct_user:
+                            match = a
+                            break
                     if match is not None:
                         prev_status = match.get("status")
                         match["status"] = new_status
@@ -274,12 +275,11 @@ class AutomationManager:
                         if new_status == "expired":
                             match["expiry_date"] = attempt_ts
                         else:
-                            # clear expiry_date when back to valid or failed
                             match.pop("expiry_date", None)
                         if prev_status != new_status:
                             match["status_changed_at"] = attempt_ts
                         wrote = _write_credentials_file(creds_path, file_data, file_accounts, file_accounts_key)
-                        log_message(f"Updated credentials file {creds_path} for {match.get('name') or match.get('username')}: status={new_status} wrote={wrote}", INFO)
+                        log_message(f"Updated credentials file {creds_path} for {(match.get('name') or match.get('username'))}: status={new_status} wrote={wrote}", INFO)
             except Exception as e:
                 log_message(f"Error updating credentials file: {e}", WARNING)
             if result == "success":
