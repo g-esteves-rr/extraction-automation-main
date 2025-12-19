@@ -7,6 +7,12 @@
     ],
     "action": "perform_login"
   },
+  "1b-password_check": {
+    "images": [
+      "images/generic/0_en_expired_password.bmp"
+    ],
+    "action": "perform_check_password_expired"
+  },
   "2-select_responsabilite": {
     "images": [
       "images/generic/2_arrow_down.bmp",

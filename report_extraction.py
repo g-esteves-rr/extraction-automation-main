@@ -162,6 +162,7 @@ class AutomationManager:
         self.report_config = None
         self.actions = {
                 "perform_login": self.perform_login,
+                "perform_check_password_expired": self.perform_check_password_expired,
                 "perform_select_responsabilite": self.perform_select_responsabilite,
                 "perform_accept_optional": self.perform_accept_optional,
                 "perform_browse": self.perform_browse,
@@ -545,6 +546,54 @@ class AutomationManager:
         except Exception as e:
             log_message(f"Error in select_responsabilite step: {str(e)}", WARNING)
             #return f"FAIL_STEP: {step_name}"
+            raise
+
+    def perform_check_password_expired(self, step_name, images):
+        """Check for an expired-password dialog/image and handle it.
+
+        Expects images[0] to point to the expired-password image for this
+        locale/report. If detected, updates credentials status and raises
+        an Exception to stop the flow.
+        """
+        log_message("Performing password-expired check", INFO)
+        try:
+            # images[0] should be the expired-password indicator
+            if not images or len(images) == 0:
+                log_message(f"No images configured for {step_name}", WARNING)
+                return
+
+            pos = StepExecutor.check_image_exists(images[0], report_name=self.report_name)
+            if pos:
+                username = None
+                if getattr(self, "current_account", None):
+                    username = self.current_account.get("username")
+                log_message(f"Expired-password detected for user {username}", WARNING)
+                print(f"PASSWORD_EXPIRED:{username}")
+
+                # Update credentials file if present
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                creds_path = os.environ.get("CREDENTIALS_FILE", os.path.join(script_dir, "config", "credentials.json"))
+                file_data, file_accounts, file_accounts_key = _read_credentials_file(creds_path)
+                if file_accounts:
+                    acct_user = (username or "").lower()
+                    for a in file_accounts:
+                        if (a.get("username") or "").lower() == acct_user:
+                            prev_status = a.get("status")
+                            now_ts = datetime.utcnow().isoformat() + "Z"
+                            a["status"] = "expired"
+                            a["last_used"] = now_ts
+                            a["expiry_date"] = now_ts
+                            if prev_status != "expired":
+                                a["status_changed_at"] = now_ts
+                            _write_credentials_file(creds_path, file_data, file_accounts, file_accounts_key)
+                            break
+
+                raise Exception("Password expired detected")
+            else:
+                log_message(f"No expired-password image detected for {step_name}", INFO)
+                return
+        except Exception as e:
+            log_message(f"Error in password-expired check: {e}", WARNING)
             raise
 
     def perform_accept_optional(self, step_name, images):
