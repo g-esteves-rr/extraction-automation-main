@@ -221,6 +221,25 @@ class AutomationManager:
             raise ValueError("No credentials available (set CREDENTIALS_FILE or provide config/credentials.json)")
 
         last_exc = None
+        # Sort credentials by 'priority' if present (lower number = higher priority).
+        # Keep original order for entries without priority.
+        try:
+            def _priority_key(a):
+                p = a.get("priority")
+                if p is None:
+                    return 10**9
+                try:
+                    return int(p)
+                except Exception:
+                    try:
+                        return int(str(p).strip())
+                    except Exception:
+                        return 10**9
+            credentials = sorted(credentials, key=_priority_key)
+            log_message(f"Credentials ordered by priority: {[ (a.get('username') or a.get('name'), a.get('priority')) for a in credentials ]}", INFO)
+        except Exception:
+            # If something goes wrong, fall back to provided order
+            log_message("Could not sort credentials by priority, using provided order", WARNING)
         for account in credentials:
             # Use username (uppercased) as the config folder unless an explicit
             # `config_folder` is provided. Do NOT use `name` for the config path.
