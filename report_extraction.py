@@ -83,14 +83,17 @@ def load_report_config(report_name, user_folder=None):
     `config/{report_name}.json`.
     """
     # Prefer configs placed relative to this script so execution from other
-    # working directories still finds the files.
+    # working directories still finds the files. Use uppercase username folder
+    # and lowercase report filenames as per new convention.
     script_dir = os.path.dirname(os.path.abspath(__file__))
     paths_to_try = []
+    report_file = f"{report_name.lower()}.json"
     if user_folder:
-        paths_to_try.append(os.path.join(script_dir, "config", user_folder, f"{report_name}.json"))
-    paths_to_try.append(os.path.join(script_dir, "config", f"{report_name}.json"))
+        paths_to_try.append(os.path.join(script_dir, "config", user_folder.upper(), report_file))
+    paths_to_try.append(os.path.join(script_dir, "config", report_file))
 
     for config_path in paths_to_try:
+        log_message(f"Looking for report config at: {config_path}", INFO)
         if os.path.isfile(config_path):
             with open(config_path, "r") as f:
                 return json.load(f)
@@ -214,7 +217,7 @@ class AutomationManager:
 
         last_exc = None
         for account in credentials:
-            user_folder = account.get("config_folder") or account.get("name") or account.get("username")
+            user_folder = account.get("username")
             log_message(f"Attempting login using account: {user_folder}", INFO)
             attempt_ts = datetime.utcnow().isoformat() + "Z"
             try:
