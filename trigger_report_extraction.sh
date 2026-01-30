@@ -4,7 +4,7 @@
 SECONDS=0
 
 # Change to the directory where the script and virtual environment are located
-cd /root/Desktop/extraction-automation-main
+cd /root/Desktop/extraction-automation-main || exit 1
 
 # Activate virtual environment
 source env_automation/bin/activate
@@ -34,10 +34,7 @@ read_env_var "VSCREEN_W"
 read_env_var "VSCREEN_H"
 read_env_var "VSCREEN_DPI"
 
-# force dark widgets inside the virtual display
-#export GTK_THEME=Adwaita:dark
-
-# keyboard fix - us pc105 - due to problem of 7 instead of /
+# keyboard fix - us pc105
 command -v setxkbmap >/dev/null 2>&1 && setxkbmap -layout us -model pc105 || true
 
 # Get report name from the first argument (if provided)
@@ -51,9 +48,6 @@ date=""
 if [ $# -ge 2 ]; then
   date="$2"
 fi
-
-# Notify that the process has started
-#./notifications/notify.sh "$report_name" "$STATUS_START"
 
 # Run the Python script based on HEADLESS mode
 if [ "$HEADLESS" = "true" ]; then
@@ -70,66 +64,95 @@ else
   fi
 fi
 
-# Check the exit status of the Python script
+# Capture exit status
 exit_status=$?
 
 # Calculate execution time
 execution_time=$SECONDS
 
-# If Python printed any PASSWORD_EXPIRED signals during its run, notify and mark credentials
-if echo "$python_output" | grep -q '^PASSWORD_EXPIRED:'; then
-  # iterate unique usernames
-  echo "Detected PASSWORD_EXPIRED entries in python output"
-  echo "$python_output" | grep '^PASSWORD_EXPIRED:' | cut -d: -f2- | sed 's/^\s*//;s/\s*$//' | sort -u | while read -r expired_user; do
-    echo "expired credentials: $expired_user"
-    # Mark credential as expired in config
-    if [[ -x "scripts/mark_credential_expired.sh" ]]; then
-      scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
-    else
-      bash scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
-    fi
-    # Send a password-expired notification so operators can handle it
-    if [[ -x "notifications/notify.sh" || -f "notifications/notify.sh" ]]; then
-      ./notifications/notify.sh "PASSWORD_EXPIRED" "EXPIRED" "Password expired for user $expired_user" || true
-    fi
-  done
-fi
+# ===============================
+# PASSWORD EXPIRED HANDLING
+# ===============================
+#if echo "$python_output" | grep -q '^PASSWORD_EXPIRED:'; then
+#  echo "Detected PASSWORD_EXPIRED entries in python output"
+#
+#  echo "$python_output" | grep '^PASSWORD_EXPIRED:' | cut -d: -f2- | sed 's/^\s*//;s/\s*$//' | sort -u | while read -r expired_user; do
+#    echo "expired credentials: $expired_user"
+#
+#    # Mark credential as expired
+#    if [[ -x "scripts/mark_credential_expired.sh" ]]; then
+#      scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
+#    else
+#      bash scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
+#    fi
+#
+#    # Notify operators
+#    if [[ -x "notifications/notify.sh" || -f "notifications/notify.sh" ]]; then
+#      ./notifications/notify.sh "$report_name" "PASSWORD_EXPIRED" "Password expired for user $expired_user" || true
+#    fi
+#  done
+#fi
 
+# ===============================
+# LOGIN ERROR HANDLING (NEW)
+# ===============================
+#if echo "$python_output" | grep -q '^LOGIN_ERROR:'; then
+#  echo "Detected LOGIN_ERROR entries in python output"
+#
+#  echo "$python_output" | grep '^LOGIN_ERROR:' | cut -d: -f2- | sed 's/^\s*//;s/\s*$//' | sort -u | while read -r login_user; do
+#    echo "login error for credentials: $login_user"
+#
+#    # Notify operators
+#    if [[ -x "notifications/notify.sh" || -f "notifications/notify.sh" ]]; then
+#      ./notifications/notify.sh "$report_name" "LOGIN_ERROR" "Login error for user $login_user" || true
+#    fi
+#  done
+#fi
+
+# ===============================
+# FAILURE HANDLING
+# ===============================
 if [ $exit_status -ne 0 ]; then
-  echo "Python script failed with message: $python_output"
+  echo "Python script failed with message:"
+  echo "$python_output"
 
-  # Detect explicit password-expired signal from Python
-  expired_user=""
+  # PRIORITY 1: Check for Password Expired
+  # If this is found, we execute this block and SKIP the Login Error block.
   if echo "$python_output" | grep -q '^PASSWORD_EXPIRED:'; then
     expired_user=$(echo "$python_output" | grep '^PASSWORD_EXPIRED:' | head -n1 | cut -d: -f2-)
     echo "expired credentials: $expired_user"
-    # Mark credential as expired in config
+
     if [[ -x "scripts/mark_credential_expired.sh" ]]; then
-      # Script usage: scripts/mark_credential_expired.sh <credentials_file> <account_name>
       scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
     else
-      # Try to call even if not executable
       bash scripts/mark_credential_expired.sh config/credentials.json "$expired_user" || true
     fi
-    # Send a password-expired notification so operators can handle it
+
     if [[ -x "notifications/notify.sh" || -f "notifications/notify.sh" ]]; then
-      # report_name "PASSWORD_EXPIRED" is treated as a special alert by notify.sh
-      ./notifications/notify.sh "PASSWORD_EXPIRED" "EXPIRED" "Password expired for user $expired_user" || true
+      ./notifications/notify.sh "$report_name" "PASSWORD_EXPIRED" "Password expired for user $expired_user" || true
+    fi
+
+  # PRIORITY 2: Check for Login Error
+  # This runs ONLY if 'PASSWORD_EXPIRED' was NOT found above.
+  elif echo "$python_output" | grep -q '^LOGIN_ERROR:'; then
+    login_error_user=$(echo "$python_output" | grep '^LOGIN_ERROR:' | head -n1 | cut -d: -f2-)
+    echo "login error credentials: $login_error_user"
+
+    if [[ -x "notifications/notify.sh" || -f "notifications/notify.sh" ]]; then
+      ./notifications/notify.sh "$report_name" "LOGIN_ERROR" "Login error for user $login_error_user" || true
     fi
   fi
 
-  # Send failure notification with the error message (optional)
-  #./notifications/notify.sh "$report_name" "$STATUS_FAIL" "$python_output"
-
-  # Update stats with the failure status and execution time
+  # Update stats as failure
   ./stats/append_stats.sh "$report_name" "$execution_time" "$STATUS_FAIL"
   exit 1
 else
-  # Update stats with the success status and execution time
+  # Success stats
   ./stats/append_stats.sh "$report_name" "$execution_time" "$STATUS_SUCCESS"
 fi
 
-# If successful, continue to the next step
+# ===============================
+# NEXT STEP
+# ===============================
 echo "Send File"
 ./report_transfer.sh "$report_name"
-

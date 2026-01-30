@@ -9,7 +9,8 @@
   },
   "1b-password_check": {
     "images": [
-      "images/generic/0_en_expired_password.bmp"
+      "images/generic/0_en_expired_password.bmp",
+      "images/generic/0_en_login_error.bmp"
     ],
     "action": "perform_check_password_expired"
   },

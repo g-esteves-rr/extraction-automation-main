@@ -7,7 +7,7 @@
         {
           "server": "globalardwh.equant.com",
           "port": 2121,
-          "destination_path": "DUK008"
+          "destination_path": "/00_files/DUK008"
         },
         {
           "server": "10.238.100.112",
@@ -33,7 +33,7 @@
         {
           "server": "globalardwh.equant.com",
           "port": 2121,
-          "destination_path": "DUK008_XLS"
+          "destination_path": "/00_files/DUK008_XLS"
         }
       ]
     },
@@ -44,7 +44,7 @@
         {
           "server": "globalardwh.equant.com",
           "port": 2121,
-          "destination_path": "IC01"
+          "destination_path": "/00_files/IC01"
         },
         {
            "server": "10.238.100.104",
@@ -60,7 +60,7 @@
         {
           "server": "globalardwh.equant.com",
           "port": 2121,
-          "destination_path": "PROVISION"
+          "destination_path": "/00_files/PROVISION"
         },
         {
            "server": "10.238.100.104",
@@ -76,7 +76,7 @@
         {
           "server": "globalardwh.equant.com",
           "port": 2121,
-          "destination_path": "ACCRUALS"
+          "destination_path": "/00_files/ACCRUALS"
         },
         {
            "server": "10.238.100.104",

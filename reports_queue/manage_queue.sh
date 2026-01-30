@@ -74,7 +74,7 @@ process_queue() {
         # Notify only if it's the first time (PENDING)
         if [[ "$status" == "PENDING" ]]; then
             log_message "Sending START notification for report $report_name"
-            "$NOTIFICATION_SCRIPT" "$report_name" "START"
+            #"$NOTIFICATION_SCRIPT" "$report_name" "START"
         fi
         
         # If retry count exceeded, send FAIL notification

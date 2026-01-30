@@ -1,1 +1,8 @@
-[]
+[
+    {
+        "report_name": "password_expiration_test",
+        "status": "EXPIRED_PASSWORD",
+        "timestamp": "2025-12-23T11:43:23",
+        "notes": "Test password expiration alert"
+    }
+]
